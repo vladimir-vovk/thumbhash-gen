@@ -1,0 +1,35 @@
+{
+  "name": "thumbhash-gen",
+  "version": "1.0.0",
+  "description": "Generate ThumbHash for your images",
+  "main": "index.js",
+  "bin": {
+    "thumbhash-gen": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc && tsc-alias",
+    "run-build": "pnpm build && node ./dist/index.js"
+  },
+  "type": "module",
+  "keywords": [
+    "thumbhash",
+    "image",
+    "placeholder"
+  ],
+  "author": "Vladimir Vovk",
+  "license": "ISC",
+  "packageManager": "pnpm@10.7.0",
+  "dependencies": {
+    "ansis": "^3.17.0",
+    "commander": "^13.1.0",
+    "sharp": "^0.34.1",
+    "thumbhash": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsc-alias": "^1.8.15",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
