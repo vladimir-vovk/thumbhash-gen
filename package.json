@@ -2,7 +2,7 @@
   "name": "thumbhash-gen",
   "version": "1.0.0",
   "description": "Generate ThumbHash for your images",
-  "main": "index.js",
+  "main": "main.ts",
   "bin": {
     "thumbhash-gen": "./dist/index.js"
   },
@@ -19,6 +19,14 @@
   ],
   "author": "Vladimir Vovk",
   "license": "ISC",
+  "homepage": "https://github.com/vladimir-vovk/thumbhash-gen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladimir-vovk/thumbhash-gen.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vladimir-vovk/thumbhash-gen/issues"
+  },
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
     "ansis": "^3.17.0",
