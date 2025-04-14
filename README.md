@@ -10,7 +10,9 @@ ThumbHash Generator 🖼️
 
 It helps to generate ThumbHash placeholders for your images.
 
-Please visit the https://evanw.github.io/thumbhash/ to learn more.
+Please visit the https://evanw.github.io/thumbhash/ to learn more about the ThumbHash library.
+
+Please read the [Better Image Placeholders with ThumbHash](https://dev.to/vladimirvovk/better-image-placeholders-with-thumbhash-43mj) article to learn how to use it in apps.
 
 <img src="./screen.gif" width="600"></img>
 
