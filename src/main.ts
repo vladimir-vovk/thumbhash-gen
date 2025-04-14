@@ -24,6 +24,7 @@ import {
   Result,
   ThumbhashFromBase64,
   CommandAction,
+  PngFromThumbhashBase64,
 } from 'src/types'
 
 export const run = () => {
@@ -124,7 +125,26 @@ const commandAction = async ({ inputs, options }: CommandAction) => {
   process.exit(exitStatus)
 }
 
-const thumbhashFromBase64 = async ({ hash, options }: ThumbhashFromBase64) => {
+const pngFromThumbhashBase64 = async ({
+  hash,
+  dir,
+  filename,
+}: PngFromThumbhashBase64): Promise<string> => {
+  const rgbaInfo = thumbhash.thumbHashToRGBA(Buffer.from(hash, 'base64'))
+  const name = filename ?? `${hash.replaceAll('/', '')}.png`
+  const pngPath = path.join(dir ?? '', name)
+
+  const { w: width, h: height, rgba } = rgbaInfo
+  const image = sharp(rgba, { raw: { width, height, channels: 4 } })
+  await image.toFile(pngPath)
+
+  return pngPath
+}
+
+const thumbhashFromBase64 = async ({
+  hash,
+  options,
+}: ThumbhashFromBase64): Promise<Result> => {
   const { format, dir } = options
 
   if (format === 'base64') {
@@ -133,12 +153,17 @@ const thumbhashFromBase64 = async ({ hash, options }: ThumbhashFromBase64) => {
     const data = thumbhash.thumbHashToDataURL(Buffer.from(hash, 'base64'))
     return { data, status: STATUS.success }
   } else if (format === 'png') {
-    const rgbaInfo = thumbhash.thumbHashToRGBA(Buffer.from(hash, 'base64'))
-    const pngPath = path.join(dir ?? '', `${hash.replaceAll('/', '')}.png`)
+    const { data: pngPath, error } = await tryCatch(
+      pngFromThumbhashBase64({ hash, dir }),
+    )
 
-    const { w: width, h: height, rgba } = rgbaInfo
-    const image = sharp(rgba, { raw: { width, height, channels: 4 } })
-    await image.toFile(pngPath)
+    if (error) {
+      log({
+        message: `[thumbhashFromBase64] PNG from thumbhash error: ${error}`,
+        status: 'error',
+      })
+      return { status: STATUS.pngCreateError }
+    }
 
     return { data: pngPath, status: STATUS.success }
   }
@@ -147,6 +172,7 @@ const thumbhashFromBase64 = async ({ hash, options }: ThumbhashFromBase64) => {
     message: `[thumbhashFromBase64] Unknows format: ${format}`,
     status: 'error',
   })
+
   return { status: STATUS.unknownFormat }
 }
 
@@ -178,19 +204,50 @@ export const thumbhashFromUrl = async ({
   )
 
   if (error) {
-    log({ message: `Image "${url}" fetch error: ${error}`, status: 'error' })
+    log({
+      message: `[thumbhashFromUrl] Image "${url}" fetch error: ${error}`,
+      status: 'error',
+    })
     return { status: STATUS.imageFetchError }
   }
 
   const { format, dir } = options
 
   if (format === 'png') {
+    const thumbhashBase64 = await thumbhashFromBuffer({
+      buffer,
+      format: 'base64',
+    })
+
+    if (!thumbhashBase64) {
+      log({
+        message: `[thumbhashFromFile] Empty hash`,
+        status: 'error',
+      })
+      return { status: STATUS.emptyHash }
+    }
+
     const pngFilename = uniqueFilename({
       filename: filenameFromUrl(url),
       dir,
       ext: 'png',
     })
-    await sharp(buffer).png().toFile(pngFilename)
+
+    const { error: pngError } = await tryCatch(
+      pngFromThumbhashBase64({
+        hash: thumbhashBase64,
+        dir,
+        filename: pngFilename,
+      }),
+    )
+
+    if (pngError) {
+      log({
+        message: `[thumbhashFromUrl] Create PNG from thumbhash error: ${error}`,
+        status: 'error',
+      })
+      return { status: STATUS.pngCreateError }
+    }
 
     return { data: pngFilename, status: STATUS.success }
   }
@@ -211,7 +268,7 @@ export const thumbhashFromFile = async ({
 
   if (error) {
     log({
-      message: `Can not read file "${filename}": ${error}`,
+      message: `[thumbhashFromFile] Can not read file "${filename}": ${error}`,
       status: 'error',
     })
 
@@ -222,7 +279,34 @@ export const thumbhashFromFile = async ({
 
   if (format === 'png') {
     const pngFilename = uniqueFilename({ filename, ext: 'png', dir })
-    await sharp(buffer).png().toFile(pngFilename)
+    const thumbhashBase64 = await thumbhashFromBuffer({
+      buffer,
+      format: 'base64',
+    })
+
+    if (!thumbhashBase64) {
+      log({
+        message: `[thumbhashFromFile] Empty hash`,
+        status: 'error',
+      })
+      return { status: STATUS.emptyHash }
+    }
+
+    const { error: pngError } = await tryCatch(
+      pngFromThumbhashBase64({
+        hash: thumbhashBase64,
+        dir,
+        filename: pngFilename,
+      }),
+    )
+
+    if (pngError) {
+      log({
+        message: `[thumbhashFromFile] Create PNG from thumbhash error: ${error}`,
+        status: 'error',
+      })
+      return { status: STATUS.pngCreateError }
+    }
 
     return { data: pngFilename, status: STATUS.success }
   }

@@ -48,6 +48,8 @@ export const STATUS = {
     readFileError: 2,
     imageFetchError: 3,
     unknownFormat: 4,
+    pngCreateError: 5,
+    emptyHash: 6,
 };
 export async function tryCatch(promise) {
     try {

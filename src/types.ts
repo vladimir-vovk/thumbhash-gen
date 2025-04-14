@@ -18,6 +18,12 @@ export enum InputType {
   'base64',
 }
 
+export type PngFromThumbhashBase64 = {
+  hash: string
+  dir?: string
+  filename?: string
+}
+
 export type ThumbhashFromBase64 = {
   hash: string
   options: Options
