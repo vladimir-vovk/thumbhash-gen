@@ -5,6 +5,7 @@ export type Format = (typeof AVAILABLE_FORMATS)[number]
 export type Options = {
   format: Format
   dir?: string
+  info?: boolean
 }
 
 export type CommandAction = {
@@ -16,6 +17,11 @@ export enum InputType {
   'url',
   'file',
   'base64',
+}
+
+export type ImageInfo = {
+  buffer: ArrayBuffer
+  [key: string]: any
 }
 
 export type PngFromThumbhashBase64 = {
@@ -45,6 +51,12 @@ export type ThumbhashFromBuffer = {
 }
 
 export type Result = {
-  data?: string
+  data?: string | { [key: string]: any }
   status: number
+}
+
+export type ThumbhashPngFromBuffer = {
+  buffer: ArrayBuffer
+  filename: string
+  dir?: string
 }
