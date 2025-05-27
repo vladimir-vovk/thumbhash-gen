@@ -9,7 +9,7 @@ import { InputType, } from './types.js';
 export const run = () => {
     program
         .name('thumbhash-gen')
-        .version(version(), '-v, --version', 'prints version')
+        .version(version(), '-v, --version', 'print version')
         .description(`${bold('ThumbHash Generator')}
 
   It helps to generate ThumbHash placeholders for your images.
@@ -36,6 +36,7 @@ Examples:
         .choices(AVAILABLE_FORMATS)
         .default(AVAILABLE_FORMATS[0])
         .argParser(parseFormatArg))
+        .option('-i, --info', 'print image information')
         .option('-d, --dir <name>', 'output directory for "png" format')
         .argument('<inputs...>', 'one or more files / urls / hashes to encode')
         .action((inputs, options) => commandAction({ inputs, options }));
@@ -93,6 +94,11 @@ const commandAction = async ({ inputs, options }) => {
     }
     process.exit(exitStatus);
 };
+const imageInfo = async ({ buffer, ...rest }) => {
+    const image = sharp(buffer);
+    const { width, height } = await image.metadata();
+    return JSON.stringify({ ...rest, width, height });
+};
 const pngFromThumbhashBase64 = async ({ hash, dir, filename, }) => {
     const rgbaInfo = thumbhash.thumbHashToRGBA(Buffer.from(hash, 'base64'));
     const name = filename ?? `${hash.replaceAll('/', '')}.png`;
@@ -145,6 +151,32 @@ const thumbhashFromBuffer = async ({ buffer, format }) => {
         return thumbhashBase64;
     }
 };
+const thumbhashPngFromBuffer = async ({ buffer, filename, dir, }) => {
+    const thumbhashBase64 = await thumbhashFromBuffer({
+        buffer,
+        format: 'base64',
+    });
+    if (!thumbhashBase64) {
+        log({
+            message: `[thumbhashPngFromBuffer] Empty hash`,
+            status: 'error',
+        });
+        return STATUS.emptyHash;
+    }
+    const { error: pngError } = await tryCatch(pngFromThumbhashBase64({
+        hash: thumbhashBase64,
+        dir,
+        filename,
+    }));
+    if (pngError) {
+        log({
+            message: `[thumbhashPngFromUrl] Create PNG from thumbhash error: ${pngError}`,
+            status: 'error',
+        });
+        return STATUS.pngCreateError;
+    }
+    return STATUS.success;
+};
 export const thumbhashFromUrl = async ({ url, options, }) => {
     const { data: buffer, error } = await tryCatch(fetch(url).then((response) => response.arrayBuffer()));
     if (error) {
@@ -154,39 +186,22 @@ export const thumbhashFromUrl = async ({ url, options, }) => {
         });
         return { status: STATUS.imageFetchError };
     }
-    const { format, dir } = options;
+    const { format, dir, info } = options;
     if (format === 'png') {
-        const thumbhashBase64 = await thumbhashFromBuffer({
-            buffer,
-            format: 'base64',
-        });
-        if (!thumbhashBase64) {
-            log({
-                message: `[thumbhashFromFile] Empty hash`,
-                status: 'error',
-            });
-            return { status: STATUS.emptyHash };
-        }
-        const pngFilename = uniqueFilename({
+        const filename = uniqueFilename({
             filename: filenameFromUrl(url),
             dir,
             ext: 'png',
         });
-        const { error: pngError } = await tryCatch(pngFromThumbhashBase64({
-            hash: thumbhashBase64,
-            dir,
-            filename: pngFilename,
-        }));
-        if (pngError) {
-            log({
-                message: `[thumbhashFromUrl] Create PNG from thumbhash error: ${error}`,
-                status: 'error',
-            });
-            return { status: STATUS.pngCreateError };
+        const status = await thumbhashPngFromBuffer({ buffer, filename, dir });
+        if (status !== STATUS.success) {
+            return { status };
         }
-        return { data: pngFilename, status: STATUS.success };
+        const data = info ? await imageInfo({ buffer, filename }) : filename;
+        return { data, status };
     }
-    const data = await thumbhashFromBuffer({ buffer, format });
+    const thumbhash = await thumbhashFromBuffer({ buffer, format });
+    const data = info ? await imageInfo({ buffer, url, thumbhash }) : thumbhash;
     return { data, status: STATUS.success };
 };
 export const thumbhashFromFile = async ({ filename, options, }) => {
@@ -201,34 +216,24 @@ export const thumbhashFromFile = async ({ filename, options, }) => {
         });
         return { status: STATUS.readFileError };
     }
-    const { format, dir } = options;
+    const { format, dir, info } = options;
     if (format === 'png') {
         const pngFilename = uniqueFilename({ filename, ext: 'png', dir });
-        const thumbhashBase64 = await thumbhashFromBuffer({
+        const status = await thumbhashPngFromBuffer({
             buffer,
-            format: 'base64',
-        });
-        if (!thumbhashBase64) {
-            log({
-                message: `[thumbhashFromFile] Empty hash`,
-                status: 'error',
-            });
-            return { status: STATUS.emptyHash };
-        }
-        const { error: pngError } = await tryCatch(pngFromThumbhashBase64({
-            hash: thumbhashBase64,
-            dir,
             filename: pngFilename,
-        }));
-        if (pngError) {
-            log({
-                message: `[thumbhashFromFile] Create PNG from thumbhash error: ${error}`,
-                status: 'error',
-            });
-            return { status: STATUS.pngCreateError };
+        });
+        if (status !== STATUS.success) {
+            return { status };
         }
-        return { data: pngFilename, status: STATUS.success };
+        const data = info
+            ? await imageInfo({ buffer, filename: pngFilename })
+            : pngFilename;
+        return { data, status };
     }
-    const data = await thumbhashFromBuffer({ buffer, format });
+    const thumbhash = await thumbhashFromBuffer({ buffer, format });
+    const data = info
+        ? await imageInfo({ buffer, filename, thumbhash })
+        : thumbhash;
     return { data, status: STATUS.success };
 };
